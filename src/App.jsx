@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Scene from './components/Scene.jsx';
 import { Mark } from './components/Logo3D.jsx';
 import { projects, siteConfig, skillGroups } from './data/siteConfig.js';
@@ -106,126 +106,59 @@ function ProjectCard({ project }) {
 function ProjectDeck({ projects }) {
   const sectionRef = useRef(null);
   const pinRef = useRef(null);
-  const activeIndexRef = useRef(0);
-  const transitionTimerRef = useRef(0);
+  const deckRef = useRef(null);
+  const trackRef = useRef(null);
+  const scrollDistanceRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let frame = 0;
-    let transitioning = false;
-    let touchStartY = null;
-    const transitionDuration = 1000;
-    const isPinned = () => {
-      const section = sectionRef.current;
-      const pin = pinRef.current;
-      if (!section || !pin) return false;
-
-      const stickyTop = Number.parseFloat(window.getComputedStyle(pin).top) || 0;
-      const sectionRect = section.getBoundingClientRect();
-      return sectionRect.top <= stickyTop + 1
-        && sectionRect.bottom >= stickyTop + pin.offsetHeight;
-    };
-    const showCard = (direction) => {
-      const section = sectionRef.current;
-      const pin = pinRef.current;
-      if (!section || !pin || transitioning) return false;
-
-      const nextIndex = activeIndexRef.current + direction;
-      if (nextIndex < 0 || nextIndex >= projects.length) return false;
-
-      transitioning = true;
-      activeIndexRef.current = nextIndex;
-      setActiveIndex(nextIndex);
-
-      const stickyTop = Number.parseFloat(window.getComputedStyle(pin).top) || 0;
-      const scrollDistance = Math.max(1, section.offsetHeight - pin.offsetHeight);
-      const stepDistance = scrollDistance / projects.length;
-      const sectionStart = window.scrollY + section.getBoundingClientRect().top - stickyTop;
-      window.scrollTo({
-        top: sectionStart + nextIndex * stepDistance,
-        behavior: 'instant',
-      });
-
-      window.clearTimeout(transitionTimerRef.current);
-      transitionTimerRef.current = window.setTimeout(() => {
-        transitioning = false;
-        scheduleUpdate();
-      }, transitionDuration);
-      return true;
-    };
-    const updateActiveCard = () => {
+    const updatePosition = () => {
       frame = 0;
       const section = sectionRef.current;
       const pin = pinRef.current;
-      if (!section || !pin || transitioning) return;
+      const track = trackRef.current;
+      if (!section || !pin || !track) return;
 
       const stickyTop = Number.parseFloat(window.getComputedStyle(pin).top) || 0;
-      const scrollDistance = Math.max(1, section.offsetHeight - pin.offsetHeight);
+      const scrollDistance = scrollDistanceRef.current;
+      const sectionStart = window.scrollY + section.getBoundingClientRect().top - stickyTop;
       const progress = Math.min(1, Math.max(
         0,
-        (stickyTop - section.getBoundingClientRect().top) / scrollDistance,
+        scrollDistance ? (window.scrollY - sectionStart) / scrollDistance : 0,
       ));
-      const nextIndex = Math.min(projects.length - 1, Math.floor(progress * projects.length + 0.35));
-      if (activeIndexRef.current !== nextIndex) {
-        activeIndexRef.current = nextIndex;
-        setActiveIndex(nextIndex);
-      }
-    };
-    const scheduleUpdate = () => {
-      if (!frame) frame = window.requestAnimationFrame(updateActiveCard);
-    };
-    const handleWheel = (event) => {
-      if (event.ctrlKey || event.deltaY === 0) return;
-      if (!isPinned()) return;
-      if (transitioning) {
-        event.preventDefault();
-        return;
-      }
-      if (showCard(Math.sign(event.deltaY))) event.preventDefault();
-    };
-    const handleTouchStart = (event) => {
-      touchStartY = event.touches[0]?.clientY ?? null;
-    };
-    const handleTouchMove = (event) => {
-      const touchY = event.touches[0]?.clientY;
-      if (touchStartY === null || touchY === undefined || !isPinned()) return;
+      track.style.setProperty('--work-offset', `${-progress * scrollDistance}px`);
 
-      const deltaY = touchStartY - touchY;
-      if (Math.abs(deltaY) < 36) {
-        event.preventDefault();
-        return;
-      }
-
-      const direction = Math.sign(deltaY);
-      if (transitioning) {
-        event.preventDefault();
-        return;
-      }
-      if (showCard(direction)) {
-        event.preventDefault();
-        touchStartY = touchY;
-      }
+      const nextIndex = Math.round(progress * Math.max(0, projects.length - 1));
+      setActiveIndex((currentIndex) => currentIndex === nextIndex ? currentIndex : nextIndex);
     };
-    const handleTouchEnd = () => { touchStartY = null; };
+    const schedulePositionUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(updatePosition);
+    };
 
-    updateActiveCard();
-    window.addEventListener('scroll', scheduleUpdate, { passive: true });
-    window.addEventListener('resize', scheduleUpdate, { passive: true });
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd, { passive: true });
-    window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+    const measureTrack = () => {
+      const section = sectionRef.current;
+      const pin = pinRef.current;
+      const deck = deckRef.current;
+      const track = trackRef.current;
+      if (!section || !pin || !deck || !track) return;
+
+      scrollDistanceRef.current = Math.max(0, track.scrollWidth - deck.clientWidth);
+      section.style.height = `${pin.offsetHeight + scrollDistanceRef.current}px`;
+      schedulePositionUpdate();
+    };
+
+    measureTrack();
+    const resizeObserver = new ResizeObserver(measureTrack);
+    if (deckRef.current) resizeObserver.observe(deckRef.current);
+    if (pinRef.current) resizeObserver.observe(pinRef.current);
+    window.addEventListener('scroll', schedulePositionUpdate, { passive: true });
+    window.addEventListener('resize', measureTrack, { passive: true });
     return () => {
       window.cancelAnimationFrame(frame);
-      window.clearTimeout(transitionTimerRef.current);
-      window.removeEventListener('scroll', scheduleUpdate);
-      window.removeEventListener('resize', scheduleUpdate);
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
-      window.removeEventListener('touchcancel', handleTouchEnd);
+      resizeObserver.disconnect();
+      window.removeEventListener('scroll', schedulePositionUpdate);
+      window.removeEventListener('resize', measureTrack);
     };
   }, [projects.length]);
 
@@ -235,26 +168,28 @@ function ProjectDeck({ projects }) {
       id="work"
       data-s="1"
       ref={sectionRef}
-      style={{ height: `calc(${(1 + projects.length * 0.42) * 100}svh - 72px)` }}
     >
       <div className="work-pin wrap" ref={pinRef}>
         <p className="eyebrow reveal">01 / Selected work</p>
         <Words text="Products I've built," em="end to end." />
-        <div className="work-deck" aria-label="Selected projects">
-          {projects.map((project, index) => {
-            const active = index === activeIndex;
-            const position = active ? 'is-active' : index < activeIndex ? 'is-before' : 'is-after';
-            return (
-              <div
-                className={`project-slide ${position}`}
-                key={project.name}
-                aria-hidden={!active}
-                inert={!active}
-              >
-                <ProjectCard project={project} />
-              </div>
-            );
-          })}
+        <div className="work-deck" ref={deckRef} aria-label="Selected projects">
+          <div className="work-track-viewport">
+            <div className="work-track" ref={trackRef}>
+              {projects.map((project, index) => {
+                const active = index === activeIndex;
+                return (
+                  <div
+                    className="project-slide"
+                    key={project.name}
+                    aria-hidden={!active}
+                    inert={!active}
+                  >
+                    <ProjectCard project={project} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           <p className="work-counter" aria-live="polite">
             <span>{String(activeIndex + 1).padStart(2, '0')}</span>
             <span aria-hidden="true"> / </span>
@@ -327,9 +262,6 @@ function App() {
             </div>
             <ul className="chips reveal" style={{ '--n': 4 }} aria-label="Core stack">{STACK.map((s) => <li key={s}>{s}</li>)}</ul>
           </div>
-          <div className="band hero-band" aria-hidden="true">
-            <span>{siteConfig.brand} · {siteConfig.brand} · {siteConfig.brand}</span>
-          </div>
         </section>
 
         <ProjectDeck projects={projects} />
@@ -352,9 +284,6 @@ function App() {
         </section>
 
         <section className="contact" id="contact" data-s="3">
-          <div className="band" aria-hidden="true">
-            <span>{siteConfig.brand} · {siteConfig.brand} · {siteConfig.brand}</span>
-          </div>
           <div className="wrap contact-grid">
             <div>
               <p className="eyebrow reveal">03 / Contact</p>
