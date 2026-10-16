@@ -107,6 +107,7 @@ function ProjectDeck({ projects }) {
   const sectionRef = useRef(null);
   const pinRef = useRef(null);
   const deckRef = useRef(null);
+  const viewportRef = useRef(null);
   const trackRef = useRef(null);
   const scrollDistanceRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -117,8 +118,24 @@ function ProjectDeck({ projects }) {
       frame = 0;
       const section = sectionRef.current;
       const pin = pinRef.current;
+      const deck = deckRef.current;
+      const viewport = viewportRef.current;
       const track = trackRef.current;
-      if (!section || !pin || !track) return;
+      if (!section || !pin || !deck || !viewport || !track) return;
+
+      if (window.matchMedia('(max-width: 860px)').matches) {
+        track.style.setProperty('--work-offset', '0px');
+        deck.classList.toggle('has-overflow-left', viewport.scrollLeft > 1);
+        deck.classList.toggle('has-overflow-right', viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 1);
+        const slides = [...track.children];
+        const nearestIndex = slides.reduce((nearest, slide, index) => (
+          Math.abs(slide.offsetLeft - viewport.scrollLeft) < Math.abs(slides[nearest].offsetLeft - viewport.scrollLeft)
+            ? index
+            : nearest
+        ), 0);
+        setActiveIndex((currentIndex) => currentIndex === nearestIndex ? currentIndex : nearestIndex);
+        return;
+      }
 
       const stickyTop = Number.parseFloat(window.getComputedStyle(pin).top) || 0;
       const scrollDistance = scrollDistanceRef.current;
@@ -140,10 +157,19 @@ function ProjectDeck({ projects }) {
       const section = sectionRef.current;
       const pin = pinRef.current;
       const deck = deckRef.current;
+      const viewport = viewportRef.current;
       const track = trackRef.current;
-      if (!section || !pin || !deck || !track) return;
+      if (!section || !pin || !deck || !viewport || !track) return;
 
-      scrollDistanceRef.current = Math.max(0, track.scrollWidth - deck.clientWidth);
+      if (window.matchMedia('(max-width: 860px)').matches) {
+        scrollDistanceRef.current = 0;
+        section.style.height = '';
+        schedulePositionUpdate();
+        return;
+      }
+
+      deck.classList.remove('has-overflow-left', 'has-overflow-right');
+      scrollDistanceRef.current = Math.max(0, track.scrollWidth - viewport.clientWidth);
       section.style.height = `${pin.offsetHeight + scrollDistanceRef.current}px`;
       schedulePositionUpdate();
     };
@@ -154,11 +180,13 @@ function ProjectDeck({ projects }) {
     if (pinRef.current) resizeObserver.observe(pinRef.current);
     window.addEventListener('scroll', schedulePositionUpdate, { passive: true });
     window.addEventListener('resize', measureTrack, { passive: true });
+    viewportRef.current?.addEventListener('scroll', schedulePositionUpdate, { passive: true });
     return () => {
       window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       window.removeEventListener('scroll', schedulePositionUpdate);
       window.removeEventListener('resize', measureTrack);
+      viewportRef.current?.removeEventListener('scroll', schedulePositionUpdate);
     };
   }, [projects.length]);
 
@@ -170,10 +198,8 @@ function ProjectDeck({ projects }) {
       ref={sectionRef}
     >
       <div className="work-pin wrap" ref={pinRef}>
-        <p className="eyebrow reveal">01 / Selected work</p>
-        <Words text="Products I've built," em="end to end." />
         <div className="work-deck" ref={deckRef} aria-label="Selected projects">
-          <div className="work-track-viewport">
+          <div className="work-track-viewport" ref={viewportRef}>
             <div className="work-track" ref={trackRef}>
               {projects.map((project, index) => {
                 const active = index === activeIndex;
@@ -219,6 +245,14 @@ function useSite() {
     const reveal = new IntersectionObserver((entries) => entries.forEach((e) => {
       if (e.isIntersecting) { e.target.classList.add('in'); reveal.unobserve(e.target); }
     }), { threshold: 0.15 });
+    const skills = document.querySelector('.skills');
+    const revealSkills = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-shown');
+        revealSkills.disconnect();
+      }
+    }), { threshold: 0.2 });
+    if (skills) revealSkills.observe(skills);
     document.querySelectorAll('.reveal, .words').forEach((el) => (calm ? el.classList.add('in') : reveal.observe(el)));
     const sections = new IntersectionObserver((entries) => entries.forEach((e) => {
       if (e.isIntersecting) root.dataset.section = e.target.dataset.s;
@@ -227,11 +261,14 @@ function useSite() {
     const progress = () => root.style.setProperty('--p', (window.scrollY / Math.max(1, root.scrollHeight - window.innerHeight)).toFixed(4));
     progress();
     window.addEventListener('scroll', progress, { passive: true });
-    return () => { reveal.disconnect(); sections.disconnect(); window.removeEventListener('scroll', progress); };
+    return () => {
+      reveal.disconnect();
+      revealSkills.disconnect();
+      sections.disconnect();
+      window.removeEventListener('scroll', progress);
+    };
   }, []);
 }
-
-const STACK = ['React', 'Node.js', 'Express', 'MongoDB'];
 
 function App() {
   useSite();
@@ -253,40 +290,53 @@ function App() {
       <main id="main">
         <section className="hero wrap" id="top" data-s="0">
           <div className="hero-copy">
-            <p className="eyebrow reveal" style={{ '--n': 0 }}><span className="pulse" />Available for select projects · {siteConfig.location}</p>
-            <h1 className="reveal" style={{ '--n': 1 }}>I build complete web products, <span>front to back.</span></h1>
-            <p className="lead reveal" style={{ '--n': 2 }}>I&apos;m {siteConfig.name}, a full-stack developer. Online stores, learning platforms and automation tools, built end to end.</p>
-            <div className="actions reveal" style={{ '--n': 3 }}>
-              <a className="btn btn-pri" href="#work">View my work <ArrowIcon /></a>
-              <a className="btn" href="#contact">Contact me</a>
+            <h1 className="reveal" style={{ '--n': 1 }}>Have an idea? <span>Let&apos;s turn it into reality.</span></h1>
+            <p className="lead reveal" style={{ '--n': 2 }}>I&apos;m {siteConfig.name}, a full-stack developer helping businesses turn ideas into powerful digital products. From e-commerce websites and learning platforms to custom web applications and automation systems, I build solutions designed around real needs.</p>
+            <p className="lead hero-promise reveal" style={{ '--n': 3 }}><strong>From design to deployment, let&apos;s build something that moves your business forward.</strong></p>
+            <div className="actions reveal" style={{ '--n': 4 }}>
+              <a className="btn" href="#work">View my work <ArrowIcon /></a>
+              <a className="btn btn-pri" href="#contact">Start a Project <ArrowIcon /></a>
             </div>
-            <ul className="chips reveal" style={{ '--n': 4 }} aria-label="Core stack">{STACK.map((s) => <li key={s}>{s}</li>)}</ul>
           </div>
         </section>
 
         <ProjectDeck projects={projects} />
 
         <section className="sec wrap" id="skills" data-s="2">
-          <p className="eyebrow reveal">02 / Skills</p>
-          <Words text="The toolkit behind" em="the work." />
-          <div className="skills">
-            {skillGroups.map((g, i) => (
-              <div className="reveal" key={g.title}>
-                <Tilt className="skill">
-                  <span className="num">0{i + 1}</span>
-                  <h3>{g.title}</h3>
-                  <p>{g.intro}</p>
-                  <ul>{g.skills.map((s) => <li key={s}>{s}</li>)}</ul>
-                </Tilt>
-              </div>
-            ))}
+          <svg className="skill-filters" aria-hidden="true">
+            <filter id="skill-bump" x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence result="texture" numOctaves="3" baseFrequency=".7" type="fractalNoise" />
+              <feSpecularLighting in="texture" result="shine" lightingColor="#fffffc" specularExponent="25" specularConstant=".55" surfaceScale=".5">
+                <fePointLight x="100" y="100" z="180" />
+              </feSpecularLighting>
+              <feComposite in="shine" in2="SourceGraphic" operator="in" result="surface" />
+              <feBlend in="SourceGraphic" in2="surface" mode="screen" />
+            </filter>
+          </svg>
+          <p className="eyebrow reveal">What I bring</p>
+          <Words text="What I Bring to" em="Your Project" />
+          <p className="lead skills-intro reveal">From the first interaction to the systems running behind the scenes, I bring the skills needed to turn ideas into functional, reliable digital products.</p>
+          <div className="skills-scroller">
+            <div className="skills">
+              {skillGroups.map((g) => (
+                <div className="reveal" key={g.title}>
+                  <Tilt className="skill">
+                    <span className="skill-ticket" aria-hidden="true" />
+                    <h3>{g.title}</h3>
+                    <p className="skill-tagline"><strong>{g.tagline}</strong></p>
+                    <p>{g.intro}</p>
+                    <ul>{g.skills.map((s) => <li key={s}>{s}</li>)}</ul>
+                  </Tilt>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         <section className="contact" id="contact" data-s="3">
           <div className="wrap contact-grid">
             <div>
-              <p className="eyebrow reveal">03 / Contact</p>
+              <p className="eyebrow reveal">Contact</p>
               <Words text="Have a project in mind?" em="Let's talk." />
               <p className="lead reveal">Tell me what you want to build. I&apos;ll reply with how I&apos;d approach it.</p>
               <div className="actions reveal">

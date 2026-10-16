@@ -52,21 +52,25 @@ export const projects = [
     demo: '',
     media: [],
   },
-  {
-    number: '04',
-    name: 'SimulatedTerminal',
-    type: 'Developer tool',
-    kind: 'terminal',
-    status: 'Learning project',
-    description: 'A browser-based terminal for practising common development commands and the Git workflow.',
-    stack: ['React', 'Vite', 'JavaScript', 'Git'],
-    demo: '',
-    media: [],
-  },
 ];
 
 export const skillGroups = [
-  { title: 'Frontend', intro: 'What people see and use.', skills: ['HTML5 & CSS3', 'JavaScript', 'React', 'Responsive UI'] },
-  { title: 'Backend & data', intro: 'The logic behind the interface.', skills: ['Node.js & Express', 'REST APIs', 'MongoDB & Mongoose', 'JWT authentication'] },
-  { title: 'Tools & integrations', intro: 'Connecting, shipping and maintaining.', skills: ['Git & GitHub', 'Cloudinary', 'Render deployment', 'AI API integration'] },
+  {
+    title: 'Frontend Development',
+    tagline: 'Interfaces built for real people.',
+    intro: 'Creating responsive, intuitive experiences that look good and work smoothly across devices.',
+    skills: ['HTML5 & CSS3', 'JavaScript', 'React', 'Responsive UI development'],
+  },
+  {
+    title: 'Backend & Data',
+    tagline: 'The technology that makes it work.',
+    intro: 'Building the logic, APIs, and data systems that power secure and functional web applications.',
+    skills: ['Node.js & Express', 'REST API development', 'MongoDB & Mongoose', 'JWT authentication'],
+  },
+  {
+    title: 'Tools & Integrations',
+    tagline: 'Connecting ideas to the real world.',
+    intro: 'Integrating essential services, deploying applications, and adding capabilities that make products more useful.',
+    skills: ['Git & GitHub', 'Cloudinary integration', 'Render deployment', 'AI API integration'],
+  },
 ];
