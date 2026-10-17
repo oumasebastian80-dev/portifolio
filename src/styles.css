@@ -154,9 +154,13 @@ h2{margin:0}.words{font-size:clamp(2rem,4.8vw,3.6rem)}
   .hero,.contact-grid{grid-template-columns:1fr}.hero{padding-top:30px}
   .grid{grid-template-columns:1fr}
   .skills>.reveal{flex-basis:clamp(280px,80vw,370px)}
-  .skills{overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:none}
+  .skills{overflow-x:auto;overscroll-behavior-x:contain;padding:16px 12px 26px;scroll-snap-type:x mandatory;scrollbar-width:none}
   .skills-scroller{overflow:hidden}
-  .skill{min-height:0}
+  .skills.is-shown>.reveal:nth-child(1){--fan-end-x:0px;--fan-end-angle:-3deg}
+  .skills.is-shown>.reveal:nth-child(2){--fan-end-x:0px;--fan-end-angle:0deg}
+  .skills.is-shown>.reveal:nth-child(3){--fan-end-x:0px;--fan-end-angle:3deg}
+  .skill{width:100%;height:auto;min-height:420px;padding:24px 26px}
+  .skill h3,.skill p,.skill li{overflow-wrap:anywhere}
   .work-section{height:auto!important}
   .work-pin{position:relative;top:auto;height:auto;min-height:calc(100svh - 72px)}
   .work-deck{flex:0 0 clamp(520px,68svh,680px);width:100%}
